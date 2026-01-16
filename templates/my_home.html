@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% block body %}
+  <div class="nav" style="margin-bottom:14px">
+    <a class="pill active" href="/my">내 휴가</a>
+    <a class="pill" href="#" onclick="openRequestModal();return false;">휴가 신청</a>
+  </div>
+
+  <div class="grid cols-4">
+    <div class="card" style="grid-column:span 2">
+      <h3>내 휴가 요약 (올해)</h3>
+      <div class="row" style="justify-content:space-between;align-items:flex-end">
+        <div>
+          <div class="kpi" id="kpiAnnual">-</div>
+          <div class="sub">연차 잔여</div>
+        </div>
+        <div class="sub" id="annualDetail">-</div>
+      </div>
+      <div style="height:10px"></div>
+      <div class="grid cols-3">
+        <div class="card" style="padding:12px">
+          <h3>병가</h3>
+          <div class="kpi" id="kpiSick">-</div>
+          <div class="sub" id="sickDetail">-</div>
+        </div>
+        <div class="card" style="padding:12px">
+          <h3>경조</h3>
+          <div class="kpi" id="kpiEvent">-</div>
+          <div class="sub">올해 사용</div>
+        </div>
+        <div class="card" style="padding:12px">
+          <h3>공가</h3>
+          <div class="kpi" id="kpiPublic">-</div>
+          <div class="sub">올해 사용</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>승인 상태</h3>
+      <div class="kpi" id="kpiPending">-</div>
+      <div class="sub">대기 건수</div>
+      <div style="height:8px"></div>
+      <div class="sub" id="kpiRejected">-</div>
+    </div>
+
+    <div class="card">
+      <h3>빠른 실행</h3>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" onclick="openRequestModal()">휴가 신청</button>
+        <a class="btn" href="/logout">로그아웃</a>
+      </div>
+      <div class="footer-note">신청 후 관리자가 승인하면 잔여가 자동 반영됩니다.</div>
+    </div>
+  </div>
+
+  <div style="height:14px"></div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div style="font-weight:800;font-size:18px">최근 신청/사용 내역</div>
+        <div class="sub">최근 200건까지 조회</div>
+      </div>
+      <div class="row">
+        <select id="statusFilter" onchange="loadMyRequests()">
+          <option value="">전체</option>
+          <option value="PENDING">대기</option>
+          <option value="APPROVED">승인</option>
+          <option value="REJECTED">반려</option>
+          <option value="CANCELLED">취소</option>
+        </select>
+      </div>
+    </div>
+
+    <table class="table" style="margin-top:12px">
+      <thead>
+        <tr>
+          <th>유형</th><th>기간</th><th>사용량</th><th>상태</th><th>사유</th><th>관리</th>
+        </tr>
+      </thead>
+      <tbody id="myReqRows"></tbody>
+    </table>
+  </div>
+
+  <!-- Request modal -->
+  <div class="modal" id="reqModal">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between">
+        <div style="font-weight:900;font-size:18px">휴가 신청</div>
+        <button class="btn" onclick="closeRequestModal()">닫기</button>
+      </div>
+
+      <div class="field">
+        <label>휴가 유형</label>
+        <select id="leaveType"></select>
+      </div>
+
+      <div class="split">
+        <div class="field">
+          <label>시작 (YYYY-MM-DDTHH:MM)</label>
+          <input id="startDt" placeholder="2026-01-16T09:00" />
+        </div>
+        <div class="field">
+          <label>종료 (YYYY-MM-DDTHH:MM)</label>
+          <input id="endDt" placeholder="2026-01-16T18:00" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>사용 분(minutes) — 1일=480분(기본), 반차=240, 1시간=60</label>
+        <input id="minutes" type="number" min="30" step="30" placeholder="480"/>
+      </div>
+
+      <div class="field">
+        <label>사유(선택)</label>
+        <textarea id="reason" rows="3"></textarea>
+      </div>
+
+      <div class="row" style="justify-content:flex-end">
+        <button class="btn primary" onclick="submitRequest()">신청</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  function badge(status){
+    const map={PENDING:['대기','var(--amber)'],APPROVED:['승인','var(--green)'],REJECTED:['반려','var(--danger)'],CANCELLED:['취소','var(--muted)']};
+    const [txt,color]=map[status]||[status,'var(--muted)'];
+    return `<span class="badge"><span class="dot" style="background:${color}"></span>${txt}</span>`;
+  }
+
+  async function loadSummary(){
+    const me = await (await fetch('/api/me')).json();
+    const s = await (await fetch('/api/my/summary')).json();
+
+    document.getElementById('kpiAnnual').textContent = `${s.types.ANNUAL.remaining_days}일`;
+    document.getElementById('annualDetail').textContent = `발생 ${s.types.ANNUAL.granted_days} · 사용 ${s.types.ANNUAL.used_days}`;
+
+    document.getElementById('kpiSick').textContent = `${s.types.SICK.remaining_days}일`;
+    document.getElementById('sickDetail').textContent = `발생 ${s.types.SICK.granted_days} · 사용 ${s.types.SICK.used_days}`;
+
+    document.getElementById('kpiEvent').textContent = `${s.types.EVENT.used_days}일`;
+    document.getElementById('kpiPublic').textContent = `${s.types.PUBLIC.used_days}일`;
+
+    document.getElementById('kpiPending').textContent = `${s.pending_count}건`;
+    document.getElementById('kpiRejected').textContent = `반려 ${s.rejected_count}건`;
+  }
+
+  async function loadLeaveTypes(){
+    const types = await (await fetch('/api/leave_types')).json();
+    const sel = document.getElementById('leaveType');
+    sel.innerHTML = types.map(t=>`<option value="${t.id}" data-code="${t.code}">${t.name_ko}</option>`).join('');
+  }
+
+  function minutesToNice(m){
+    const h = Math.floor(m/60), mm=m%60;
+    if(h>=8 && mm===0) return `${(m/480).toFixed(2).replace('.00','')}일`;
+    if(mm===0) return `${h}시간`;
+    return `${h}시간 ${mm}분`;
+  }
+
+  async function loadMyRequests(){
+    const status = document.getElementById('statusFilter').value;
+    const url = status ? `/api/my/requests?status=${status}` : '/api/my/requests';
+    const rows = await (await fetch(url)).json();
+    const tb = document.getElementById('myReqRows');
+    if(!rows.length){ tb.innerHTML = `<tr><td colspan="6" class="sub">내역이 없습니다.</td></tr>`; return; }
+
+    tb.innerHTML = rows.map(r=>{
+      const period = `${r.start_dt.slice(0,16).replace('T',' ')} ~ ${r.end_dt.slice(0,16).replace('T',' ')}`;
+      const type = `<span class="badge"><span class="dot" style="background:${r.color}"></span>${r.type_name}</span>`;
+      const actions = (r.status==='PENDING' || r.status==='APPROVED') ? `<button class="btn danger" onclick="cancelReq(${r.id})">취소</button>` : '-';
+      return `<tr><td>${type}</td><td>${period}</td><td>${minutesToNice(r.requested_minutes)}</td><td>${badge(r.status)}</td><td>${r.reason||'-'}</td><td>${actions}</td></tr>`;
+    }).join('');
+  }
+
+  function openRequestModal(){ document.getElementById('reqModal').classList.add('active'); }
+  function closeRequestModal(){ document.getElementById('reqModal').classList.remove('active'); }
+
+  async function submitRequest(){
+    const payload={
+      leave_type_id: document.getElementById('leaveType').value,
+      start_dt: document.getElementById('startDt').value,
+      end_dt: document.getElementById('endDt').value,
+      requested_minutes: document.getElementById('minutes').value,
+      reason: document.getElementById('reason').value,
+    };
+    const res = await fetch('/api/my/requests', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    const j = await res.json();
+    if(!j.success){ alert('신청 실패: ' + (j.error||'')); return; }
+    alert('신청 완료! 관리자 승인 대기 상태입니다.');
+    closeRequestModal();
+    await loadSummary();
+    await loadMyRequests();
+  }
+
+  async function cancelReq(id){
+    if(!confirm('취소할까요?')) return;
+    const res = await fetch(`/api/my/requests/${id}/cancel`, {method:'POST'});
+    const j = await res.json();
+    if(!j.success){ alert('취소 실패'); return; }
+    await loadSummary();
+    await loadMyRequests();
+  }
+
+  (async function init(){
+    await loadLeaveTypes();
+    await loadSummary();
+    await loadMyRequests();
+  })();
+</script>
+{% endblock %}

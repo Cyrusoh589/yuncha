@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block body %}
+  <div class="nav" style="margin-bottom:14px">
+    <a class="pill" href="/admin">대시보드</a>
+    <a class="pill" href="/admin/inbox">승인함</a>
+    <a class="pill active" href="/admin/employees">직원</a>
+    <a class="pill" href="/admin/settings">설정</a>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div style="font-weight:900;font-size:18px">직원 관리</div>
+        <div class="sub">직원 로그인(B 방식)은 여기 등록된 활성 직원 목록을 사용합니다.</div>
+      </div>
+      <button class="btn primary" onclick="openAdd()">직원 추가</button>
+    </div>
+
+    <table class="table" style="margin-top:12px">
+      <thead>
+        <tr><th>이름</th><th>부서</th><th>직급</th><th>입사일</th><th>활성</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="modal" id="addModal">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between">
+        <div style="font-weight:900;font-size:18px">직원 추가</div>
+        <button class="btn" onclick="closeAdd()">닫기</button>
+      </div>
+      <div class="split">
+        <div class="field"><label>이름</label><input id="name"/></div>
+        <div class="field"><label>부서</label><input id="dept"/></div>
+      </div>
+      <div class="split">
+        <div class="field"><label>직급</label><input id="pos"/></div>
+        <div class="field"><label>입사일</label><input id="join" placeholder="2025-01-02"/></div>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="btn primary" onclick="addEmp()">추가</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  function openAdd(){ document.getElementById('addModal').classList.add('active'); }
+  function closeAdd(){ document.getElementById('addModal').classList.remove('active'); }
+
+  async function load(){
+    const rows = await (await fetch('/api/admin/employees')).json();
+    const tb = document.getElementById('rows');
+    tb.innerHTML = rows.map(e=>`<tr><td style="font-weight:800">${e.name}</td><td>${e.department}</td><td>${e.position}</td><td>${e.join_date}</td><td>${e.is_active?'Y':'N'}</td></tr>`).join('');
+  }
+
+  async function addEmp(){
+    const payload={name:document.getElementById('name').value,department:document.getElementById('dept').value,position:document.getElementById('pos').value,join_date:document.getElementById('join').value};
+    const res = await fetch('/api/admin/employees', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    const j = await res.json();
+    if(!j.success){ alert('추가 실패'); return; }
+    closeAdd();
+    await load();
+  }
+
+  load();
+</script>
+{% endblock %}

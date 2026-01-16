@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block body %}
+  <div class="nav" style="margin-bottom:14px">
+    <a class="pill" href="/admin">대시보드</a>
+    <a class="pill active" href="/admin/inbox">승인함</a>
+    <a class="pill" href="/admin/employees">직원</a>
+    <a class="pill" href="/admin/settings">설정</a>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div style="font-weight:900;font-size:18px">승인함</div>
+        <div class="sub">대기(PENDING) 상태를 기본으로 표시합니다.</div>
+      </div>
+      <div class="row">
+        <select id="status" onchange="loadInbox()">
+          <option value="PENDING">대기</option>
+          <option value="APPROVED">승인</option>
+          <option value="REJECTED">반려</option>
+          <option value="CANCELLED">취소</option>
+        </select>
+      </div>
+    </div>
+
+    <table class="table" style="margin-top:12px">
+      <thead>
+        <tr>
+          <th>직원</th><th>유형</th><th>기간</th><th>사용량</th><th>사유</th><th>상태</th><th>처리</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="modal" id="rejectModal">
+    <div class="panel">
+      <div class="row" style="justify-content:space-between">
+        <div style="font-weight:900;font-size:18px">반려 사유 입력</div>
+        <button class="btn" onclick="closeReject()">닫기</button>
+      </div>
+      <div class="field">
+        <label>사유(필수)</label>
+        <textarea id="rejectReason" rows="4"></textarea>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="btn danger" onclick="doReject()">반려 처리</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  let rejectId = null;
+  function badge(status){
+    const map={PENDING:['대기','var(--amber)'],APPROVED:['승인','var(--green)'],REJECTED:['반려','var(--danger)'],CANCELLED:['취소','var(--muted)']};
+    const [txt,color]=map[status]||[status,'var(--muted)'];
+    return `<span class="badge"><span class="dot" style="background:${color}"></span>${txt}</span>`;
+  }
+  function minutesToNice(m){
+    const h = Math.floor(m/60), mm=m%60;
+    if(h>=8 && mm===0) return `${(m/480).toFixed(2).replace('.00','')}일`;
+    if(mm===0) return `${h}시간`;
+    return `${h}시간 ${mm}분`;
+  }
+
+  async function loadInbox(){
+    const st = document.getElementById('status').value;
+    const rows = await (await fetch(`/api/admin/inbox?status=${st}`)).json();
+    const tb = document.getElementById('rows');
+    if(!rows.length){ tb.innerHTML = `<tr><td colspan="7" class="sub">내역이 없습니다.</td></tr>`; return; }
+
+    tb.innerHTML = rows.map(r=>{
+      const who = `<div style="font-weight:800">${r.employee_name}</div><div class="sub">${r.department} · ${r.position}</div>`;
+      const type = `<span class="badge"><span class="dot" style="background:${r.color}"></span>${r.type_name}</span>`;
+      const period = `${r.start_dt.slice(0,16).replace('T',' ')} ~ ${r.end_dt.slice(0,16).replace('T',' ')}`;
+
+      let actions='-';
+      if(r.status==='PENDING'){
+        actions = `
+          <div class="row">
+            <button class="btn primary" onclick="approve(${r.id})">승인</button>
+            <button class="btn danger" onclick="openReject(${r.id})">반려</button>
+          </div>`;
+      }
+      return `<tr><td>${who}</td><td>${type}</td><td>${period}</td><td>${minutesToNice(r.requested_minutes)}</td><td>${r.reason||'-'}</td><td>${badge(r.status)}</td><td>${actions}</td></tr>`;
+    }).join('');
+  }
+
+  async function approve(id){
+    const res = await fetch(`/api/admin/requests/${id}/approve`, {method:'POST'});
+    const j = await res.json();
+    if(!j.success){ alert('승인 실패'); return; }
+    await loadInbox();
+  }
+
+  function openReject(id){ rejectId = id; document.getElementById('rejectModal').classList.add('active'); }
+  function closeReject(){ rejectId=null; document.getElementById('rejectModal').classList.remove('active'); }
+  async function doReject(){
+    const comment = document.getElementById('rejectReason').value.trim();
+    if(!comment){ alert('반려 사유를 입력하세요.'); return; }
+    const res = await fetch(`/api/admin/requests/${rejectId}/reject`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({comment})});
+    const j = await res.json();
+    if(!j.success){ alert('반려 실패'); return; }
+    document.getElementById('rejectReason').value='';
+    closeReject();
+    await loadInbox();
+  }
+
+  loadInbox();
+</script>
+{% endblock %}

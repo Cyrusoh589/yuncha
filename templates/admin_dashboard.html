@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block body %}
+  <div class="nav" style="margin-bottom:14px">
+    <a class="pill active" href="/admin">대시보드</a>
+    <a class="pill" href="/admin/inbox">승인함</a>
+    <a class="pill" href="/admin/employees">직원</a>
+    <a class="pill" href="/admin/settings">설정</a>
+  </div>
+
+  <div class="grid cols-4">
+    <div class="card">
+      <h3>오늘 승인된 휴가(겹침 포함)</h3>
+      <div class="kpi" id="kpiToday">-</div>
+      <div class="sub">오늘 일정에 포함되는 승인 건수</div>
+    </div>
+    <div class="card">
+      <h3>승인 대기</h3>
+      <div class="kpi" id="kpiPending">-</div>
+      <div class="sub">승인함에서 처리 필요</div>
+    </div>
+    <div class="card">
+      <h3>재직 직원</h3>
+      <div class="kpi" id="kpiEmp">-</div>
+      <div class="sub">활성 직원 수</div>
+    </div>
+    <div class="card">
+      <h3>관리자 PIN</h3>
+      <div class="kpi" id="kpiPin">-</div>
+      <div class="sub">설정에서 변경 가능</div>
+    </div>
+  </div>
+
+  <div style="height:14px"></div>
+
+  <div class="card">
+    <div style="font-weight:900;font-size:18px">관리자 빠른 실행</div>
+    <div class="row" style="margin-top:10px">
+      <a class="btn primary" href="/admin/inbox">승인함 열기</a>
+      <a class="btn" href="/admin/employees">직원 관리</a>
+      <a class="btn" href="/admin/settings">정책/설정</a>
+    </div>
+  </div>
+
+<script>
+  async function loadDash(){
+    const d = await (await fetch('/api/admin/dashboard')).json();
+    document.getElementById('kpiToday').textContent = `${d.today_approved_count}건`;
+    document.getElementById('kpiPending').textContent = `${d.pending_count}건`;
+    document.getElementById('kpiEmp').textContent = `${d.employee_count}명`;
+    document.getElementById('kpiPin').textContent = d.admin_pin_hint;
+  }
+  loadDash();
+</script>
+{% endblock %}

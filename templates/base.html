@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{{ title or '휴가 관리 v2' }}</title>
+  <link rel="stylesheet" href="/static/app.css"/>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">PTO</div>
+        <div>
+          <div style="font-weight:800;letter-spacing:-.02em">휴가 관리 시스템 v2</div>
+          <div class="sub">연차 · 병가 · 경조 · 공가 | 신청/승인 | 직원/관리자 홈 분리</div>
+        </div>
+      </div>
+      <div class="row">
+        {% if session.get('role') %}
+          <span class="badge"><span class="dot" style="background:var(--primary)"></span>{{ session.get('role') }}</span>
+          <a class="btn" href="/logout">로그아웃</a>
+        {% endif %}
+      </div>
+    </div>
+
+    {% block body %}{% endblock %}
+
+    <div class="footer-note">
+      로그인(B방식): 직원은 목록에서 선택 · 관리자는 PIN으로 접속. (설정에서 변경 가능)
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block body %}
+  <div class="grid cols-2" style="grid-template-columns:1.2fr .8fr; gap:14px">
+    <div class="card">
+      <h2 style="margin:0 0 10px 0">직원 로그인 (B 방식)</h2>
+      <div class="sub">직원은 비밀번호 없이 목록에서 선택해 접속합니다.</div>
+      {% if error %}<div class="badge" style="margin-top:10px;border-color:rgba(239,68,68,.5)"><span class="dot" style="background:var(--danger)"></span>{{ error }}</div>{% endif %}
+      <form method="post" style="margin-top:12px">
+        <input type="hidden" name="mode" value="employee"/>
+        <div class="field">
+          <label>직원 선택</label>
+          <select name="employee_id" required>
+            {% for e in employees %}
+              <option value="{{e.id}}">{{e.department}} · {{e.name}} ({{e.position}})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn primary" type="submit">내 휴가로 이동</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 style="margin:0 0 10px 0">관리자 로그인</h2>
+      <div class="sub">관리자는 PIN으로 접속합니다. (초기 PIN은 설정에서 변경 가능)</div>
+      <form method="post" style="margin-top:12px">
+        <input type="hidden" name="mode" value="admin"/>
+        <div class="field">
+          <label>관리자 PIN</label>
+          <input name="admin_pin" placeholder="PIN" required/>
+        </div>
+        <button class="btn primary" type="submit">관리자 대시보드</button>
+      </form>
+      <div class="footer-note">초기 PIN(데모): <strong>{{ admin_pin_hint }}</strong></div>
+    </div>
+  </div>
+{% endblock %}
